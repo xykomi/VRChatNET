@@ -19,6 +19,9 @@ namespace VRChat_Local_API
 
         public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
         public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
+        public event EventHandler<VRChatEvents.OnPlayerBlocked> OnPlayerBlocked = null!;
+        public event EventHandler<VRChatEvents.OnPlayerUnBlocked> OnPlayerUnBlocked = null!;
+        public event EventHandler<VRChatEvents.OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged = null!;
         public event EventHandler<VRChatEvents.OnRoomJoin> OnRoomJoined = null!;
         public event EventHandler<VRChatEvents.OnRoomLeft> OnRoomLeft = null!;
 
@@ -76,7 +79,7 @@ namespace VRChat_Local_API
 
                                 if (line.Contains("Successfully left room"))
                                 {
-                                    OnRoomLeft?.Invoke(this, new VRChatEvents.OnRoomLeft() { dateTime = DateTime.Now });
+                                    OnRoomLeft?.Invoke(this, new VRChatEvents.OnRoomLeft() { dateTime = DateTime.Now, data = line });
                                 }
 
                                 if (line.Contains("Joining wrld_"))
@@ -84,7 +87,39 @@ namespace VRChat_Local_API
                                     string worldId = line.Split("Joining ")[1].Split(':')[0];
                                     int roomInstance = int.Parse(line.Split(':')[1]);
 
-                                    OnRoomJoined?.Invoke(this, new VRChatEvents.OnRoomJoin() { dateTime = DateTime.Now, worldId = worldId, roomInstance = roomInstance });
+                                    OnRoomJoined?.Invoke(this, new VRChatEvents.OnRoomJoin() { dateTime = DateTime.Now, worldId = worldId, roomInstance = roomInstance, data = line });
+                                }
+
+                                if (line.Contains("ModerationManager"))
+                                {
+                                    string moderationData = Regex.Match(line, @"\[ModerationManager\] (.+)").Groups[1].Value;
+
+                                    if (line.ToLower().Contains("avatar"))
+                                    {
+                                        string displayName = moderationData.Split("avatar")[0].Replace(" ", "");
+                                        string displayData = moderationData.ToLower().Split("avatar")[1];
+
+                                        if (displayData.Contains("hidden"))
+                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Hidden, data = line });
+                                        if (displayData.Contains("enabled"))
+                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Shown, data = line });
+                                        if (displayData.Contains("safety"))
+                                        {
+                                            displayName = moderationData.Split("Avatar")[0].Replace(" ", "");
+                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Safety, data = line });
+                                        }
+                                    }
+                                    
+                                    if (line.Contains("Requesting block on"))
+                                    {
+                                        string displayName = moderationData.Split("Requesting block on")[1];
+                                        OnPlayerBlocked?.Invoke(this, new VRChatEvents.OnPlayerBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
+                                    }
+                                    if (line.Contains("Requesting unblock on"))
+                                    {
+                                        string displayName = moderationData.Split("Requesting unblock on")[1];
+                                        OnPlayerUnBlocked?.Invoke(this, new VRChatEvents.OnPlayerUnBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
+                                    }
                                 }
                             }
 
