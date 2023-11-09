@@ -19,6 +19,8 @@ namespace VRChat_Local_API
 
         public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
         public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
+        public event EventHandler<VRChatEvents.OnRoomJoin> OnRoomJoined = null!;
+        public event EventHandler<VRChatEvents.OnRoomLeft> OnRoomLeft = null!;
 
         public void Initialize(EventListenerConfig configuration)
         {
@@ -70,6 +72,19 @@ namespace VRChat_Local_API
                                         continue;
 
                                     OnPlayerLeft?.Invoke(this, new VRChatEvents.OnPlayerLeft() { dateTime = DateTime.Now, displayName = displayName, data = line });
+                                }
+
+                                if (line.Contains("Successfully left room"))
+                                {
+                                    OnRoomLeft?.Invoke(this, new VRChatEvents.OnRoomLeft() { dateTime = DateTime.Now });
+                                }
+
+                                if (line.Contains("Joining wrld_"))
+                                {
+                                    string worldId = line.Split("Joining ")[1].Split(':')[0];
+                                    int roomInstance = int.Parse(line.Split(':')[1]);
+
+                                    OnRoomJoined?.Invoke(this, new VRChatEvents.OnRoomJoin() { dateTime = DateTime.Now, worldId = worldId, roomInstance = roomInstance });
                                 }
                             }
 

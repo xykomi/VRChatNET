@@ -21,5 +21,18 @@ namespace VRChat_Local_API.Objects
             public DateTime dateTime { get; set; } = DateTime.Now;
             public string displayName { get; set; } = string.Empty;
         }
+
+        public class OnRoomLeft
+        {
+            public DateTime dateTime { get; set; } = DateTime.Now;
+        }
+
+        public class OnRoomJoin
+        {
+            public DateTime dateTime { get; set; } = DateTime.Now;
+            public string worldId { get; set; } = string.Empty;
+            public int roomInstance { get; set; } = 0;
+        }
+
     }
 }
