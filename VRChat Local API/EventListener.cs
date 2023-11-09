@@ -19,6 +19,7 @@ namespace VRChat_Local_API
 
         public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
         public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
+
         public void Initialize(EventListenerConfig configuration)
         {
             if (configuration.RequireGameRunning && !IsProcessRunning())
@@ -46,9 +47,7 @@ namespace VRChat_Local_API
                         fileStream.Seek(_logFileCurrentLength - 1, SeekOrigin.Begin);
 
                         using (StreamReader streamReader = new StreamReader(fileStream, Encoding.Default))
-                        {
                             LogFileContent = streamReader.ReadToEnd();
-                        }
 
                         if (LogFileContent != PastLogFileContent)
                         {
