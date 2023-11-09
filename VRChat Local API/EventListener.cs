@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Text;
 using VRChat_Local_API.Objects;
+using static VRChat_Local_API.Objects.VRChatEvents;
 
 namespace VRChat_Local_API
 {
@@ -16,8 +17,8 @@ namespace VRChat_Local_API
         public string LogFileContent { get; set; } = string.Empty;
         private string PastLogFileContent { get; set; } = "x";
 
-
-
+        public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
+        public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
         public void Initialize(EventListenerConfig configuration)
         {
             if (configuration.RequireGameRunning && !IsProcessRunning())
@@ -53,7 +54,24 @@ namespace VRChat_Local_API
                         {
                             foreach (var line in LogFileContent.Replace(PastLogFileContent, "").Split('\n'))
                             {
-                           
+                                if (line.Contains("OnPlayerJoined"))
+                                {
+                                    string displayName = Regex.Match(line, @"OnPlayerJoined (.+)").Groups[1].Value;
+                                    if (displayName == string.Empty)
+                                        continue;
+
+                                    OnPlayerJoined?.Invoke(this, new VRChatEvents.OnPlayerJoined() { dateTime = DateTime.Now, displayName = displayName, data = line });
+                                }
+
+                                if (line.Contains("OnPlayerLeft"))
+                                {
+
+                                    string displayName = Regex.Match(line, @"OnPlayerLeft (.+)").Groups[1].Value;
+                                    if (displayName == string.Empty)
+                                        continue;
+
+                                    OnPlayerLeft?.Invoke(this, new VRChatEvents.OnPlayerLeft() { dateTime = DateTime.Now, displayName = displayName, data = line });
+                                }
                             }
 
                             PastLogFileContent = LogFileContent;
