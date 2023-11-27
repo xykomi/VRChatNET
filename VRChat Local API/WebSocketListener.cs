@@ -14,8 +14,8 @@ namespace VRChat_Local_API
         private WebSocket? webSocket { get; set; } = null;
         private string authCookie { get; set; } = string.Empty;
 
-        public event EventHandler<FriendAddObject> OnFriendAdded = null!;
-        public event EventHandler<FriendDeleteObject> OnFriendDelete = null!;
+        //public event EventHandler<FriendAddObject> OnFriendAdded = null!;
+        //public event EventHandler<FriendDeleteObject> OnFriendDelete = null!;
 
         public void Initialize(string authcookie)
         {
@@ -63,12 +63,12 @@ namespace VRChat_Local_API
             {
                 case "friend-add":
                     FriendAddObject? friendAddObject = JsonConvert.DeserializeObject<FriendAddObject>(webSocketDataObject.content);
-                    OnFriendAdded?.Invoke(this, friendAddObject);
+                    //OnFriendAdded?.Invoke(this, friendAddObject);
                     break;
 
                 case "friend-delete":
                     FriendDeleteObject? friendDeleteObject = JsonConvert.DeserializeObject<FriendDeleteObject>(webSocketDataObject.content);
-                    OnFriendDelete?.Invoke(this, friendDeleteObject);
+                    //OnFriendDelete?.Invoke(this, friendDeleteObject);
                     break;
             }
         }
