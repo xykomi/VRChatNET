@@ -131,7 +131,7 @@ namespace VRChat_Local_API
         }
 
         public void Shutdown() { _disableThreads = true; }
-
+         
         public bool IsProcessRunning() => Process.GetProcessesByName("VRChat").Length > 0;
 
         public static FileInfo? GetLogFile()

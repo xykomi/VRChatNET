@@ -17,13 +17,13 @@ namespace VRChat_Local_API
         //public event EventHandler<FriendAddObject> OnFriendAdded = null!;
         //public event EventHandler<FriendDeleteObject> OnFriendDelete = null!;
 
-        public void Initialize(string authcookie)
-        {
-            if (authCookie == string.Empty)
-                authCookie = authcookie;
+        //public void Initialize(string authcookie)
+        //{
+        //    if (authCookie == string.Empty)
+        //        authCookie = authcookie;
 
-            new Thread(SocketThread).Start();
-        }
+        //    new Thread(SocketThread).Start();
+        //}
 
         private void SocketThread()
         {

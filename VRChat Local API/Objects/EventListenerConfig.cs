@@ -8,8 +8,6 @@ namespace VRChat_Local_API.Objects
 {
     public class EventListenerConfig
     {
-        public bool DebugMode { get; set; } = true;
         public bool RequireGameRunning { get; set; } = true;
-        public bool ListenToActiveEvent { get; set; } = true;
     }
 }
