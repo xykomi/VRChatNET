@@ -20,7 +20,8 @@ namespace Test_Project
             listener.OnPlayerLeft += OnPlayerLeft;
             listener.OnRoomLeft += OnRoomLeft;
 
-            listener.Initialize(eventListenerConfig); 
+            listener.Initialize(eventListenerConfig);
+            Thread.Sleep(0);
         }
 
         private static void OnPlayerUnBlocked(object? sender, VRChat_Local_API.Objects.VRChatEvents.OnPlayerUnBlocked e)
