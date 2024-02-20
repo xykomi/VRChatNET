@@ -8,7 +8,7 @@ namespace Test_Project
         static void Main(string[] args)
         {
             EventListenerConfig eventListenerConfig = new EventListenerConfig();
-            eventListenerConfig.RequireGameRunning = true; //Do we make sure that VRChat.exe is running?
+            eventListenerConfig.RequireGameRunning = true; 
 
             EventListener listener = new EventListener();
 

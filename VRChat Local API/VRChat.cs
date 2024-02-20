@@ -4,11 +4,16 @@ using System.Text.RegularExpressions;
 using System.Text;
 using VRChat_Local_API.Objects;
 using static VRChat_Local_API.Objects.VRChatEvents;
+using WebSocketSharp;
+using Newtonsoft.Json;
 
 namespace VRChat_Local_API
 {
-    public class EventListener
+    public class VRChat
     {
+        private static WebSocket _webSocket {  get; set; }
+        public bool WebSocketConnected { get; set; } = false;
+
         private static string _logDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData).Replace("Roaming", "LocalLow") + @"/VRChat/VRChat";
         private FileInfo? _logFile { get; set; } = null;
         private long _logFileCurrentLength { get; set; } = 0;
@@ -17,18 +22,41 @@ namespace VRChat_Local_API
         public string LogFileContent { get; set; } = string.Empty;
         private string PastLogFileContent { get; set; } = "x";
 
+        public event EventHandler<object> OnInitialized = null!;
+
         public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
+
         public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
+
         public event EventHandler<VRChatEvents.OnPlayerBlocked> OnPlayerBlocked = null!;
+
         public event EventHandler<VRChatEvents.OnPlayerUnBlocked> OnPlayerUnBlocked = null!;
+
         public event EventHandler<VRChatEvents.OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged = null!;
+
         public event EventHandler<VRChatEvents.OnRoomJoin> OnRoomJoined = null!;
+
         public event EventHandler<VRChatEvents.OnRoomLeft> OnRoomLeft = null!;
 
-        public void Initialize(EventListenerConfig configuration)
+        public event EventHandler<VRChatEvents.OnNotificationRecieved> OnNotificationRecieved = null!;
+
+        public event EventHandler<VRChatEvents.OnFriendLocationUpdate> OnFriendLocationUpdate = null!;
+
+        public event EventHandler<VRChatEvents.OnFriendOffline> OnFriendOffline = null!;
+
+        public event EventHandler<VRChatEvents.OnFriendOnline> OnFriendOnline = null!;
+
+        public event EventHandler<VRChatEvents.OnFriendActive> OnFriendActive = null!;
+
+        public event EventHandler<VRChatEvents.OnFriendAdd> OnFriendAdd = null!;
+
+        public event EventHandler<VRChatEvents.OnResponseNotification> OnResponseNotification = null!;
+
+        public event EventHandler<VRChatEvents.OnUserLocation> OnUserLocationUpdated = null!;
+
+        public void Initialize(string authCookie)
         {
-            if (configuration.RequireGameRunning && !IsProcessRunning())
-                throw new Exception("VRChat isn't running check the active config");
+            WebSocketListener(authCookie);
 
             _logFile = GetLogFile();
 
@@ -38,10 +66,76 @@ namespace VRChat_Local_API
             else
                 throw new Exception("Failed to access the most recent log file");
 
-            StartEventThread();
+            FileEventListener();
+
+            OnInitialized?.Invoke(this, this);
+        }
+        public void WebSocketListener(string cookie)
+        {
+            new Thread(() => {
+                _webSocket = new WebSocket($"wss://pipeline.vrchat.cloud/?authToken={cookie}");
+                _webSocket.OnOpen += OnOpen; ;
+                _webSocket.OnMessage += OnMessage;
+                _webSocket.OnClose += OnClose;
+                _webSocket.Connect();
+            }).Start();
+        }
+        private void OnOpen(object? sender, EventArgs e)
+        {
+            WebSocketConnected = true;
+            OnInitialized?.Invoke(this, this);
         }
 
-        private void StartEventThread()
+        private void OnMessage(object? sender, MessageEventArgs e)
+        {
+            VRChatEvents.SocketMessageBase incommingData = JsonConvert.DeserializeObject<VRChatEvents.SocketMessageBase>(e.Data);
+
+            switch (incommingData.Type)
+            {
+                case "notification":
+                    VRChatEvents.OnNotificationRecieved notificationObject = JsonConvert.DeserializeObject<VRChatEvents.OnNotificationRecieved>(incommingData.Content);
+                    OnNotificationRecieved?.Invoke(this, notificationObject);
+                    break;
+                case "friend-location":
+                    VRChatEvents.OnFriendLocationUpdate friendLocationObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendLocationUpdate>(incommingData.Content);
+                    OnFriendLocationUpdate?.Invoke(this, friendLocationObject);
+                    break;
+                case "friend-offline":
+                    VRChatEvents.OnFriendOffline friendOfflineObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendOffline>(incommingData.Content);
+                    OnFriendOffline?.Invoke(this, friendOfflineObject);
+                    break;
+                case "friend-online":
+                    VRChatEvents.OnFriendOnline friendOnlineObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendOnline>(incommingData.Content);
+                    OnFriendOnline?.Invoke(this, friendOnlineObject);
+                    break;
+                case "friend-active":
+                    VRChatEvents.OnFriendActive friendActiveObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendActive>(incommingData.Content);
+                    OnFriendActive?.Invoke(this, friendActiveObject);
+                    break;
+                case "friend-add":
+                    VRChatEvents.OnFriendAdd friendAddObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendAdd>(incommingData.Content);
+                    OnFriendAdd?.Invoke(this, friendAddObject);
+                    break;
+                case "response-notification":
+                    VRChatEvents.OnResponseNotification responseNotificationObject = JsonConvert.DeserializeObject<VRChatEvents.OnResponseNotification>(incommingData.Content);
+                    OnResponseNotification?.Invoke(this, responseNotificationObject);
+                    break;
+                case "user-location":
+                    VRChatEvents.OnUserLocation userLocationObject = JsonConvert.DeserializeObject<VRChatEvents.OnUserLocation>(incommingData.Content);
+                    OnUserLocationUpdated?.Invoke(this, userLocationObject);
+                    break;
+                default:
+                    Console.WriteLine($"Implementation Required = {incommingData.Type} -> {incommingData.Content}");
+                    break;
+            }
+        }
+
+        private void OnClose(object? sender, CloseEventArgs e)
+        {
+            WebSocketConnected = false;
+        }
+
+        private void FileEventListener()
         {
             new Thread(() => 
             {
@@ -132,7 +226,7 @@ namespace VRChat_Local_API
 
         public void Shutdown() { _disableThreads = true; }
          
-        public bool IsProcessRunning() => Process.GetProcessesByName("VRChat").Length > 0;
+        public bool IsRunning() => Process.GetProcessesByName("VRChat").Length > 0;
 
         public static FileInfo? GetLogFile()
         {
