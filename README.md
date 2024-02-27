@@ -19,3 +19,24 @@ Current supported events:
 + OnFriendAdd
 + OnResponseNotification
 + OnUserLocation
+
+## Usage/Examples
+
+```csharp
+     using VRChat_Local_API;
+     using VRChat_Local_API.Objects;
+
+     vRChat = new VRChat();
+
+     string credentials = System.IO.File.ReadAllText($"F:\\VRChatAccount.txt"); -> username:password:auth_cookie
+        
+     vRChat.OnFriendOnline += OnFriendOnline;
+
+     vRChat.Initialize(credentials.Split(':')[2]);
+
+     private void OnFriendOnline(object? sender, VRChatEvents.OnFriendOnline args)
+     {
+         Console.WriteLine($"[{DateTime.Now}] - {args.User.DisplayName} has come online");
+     }
+
+```
