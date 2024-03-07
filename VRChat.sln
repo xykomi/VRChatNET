@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VRChat", "VRChat Local API\VRChat.csproj", "{E3DC2321-DCD9-4F0A-A0E3-660CAA2BAB0F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VRChat", "VRChat\VRChat.csproj", "{2A8A4B4F-252F-4D1A-BFB9-71965B4948EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{E3DC2321-DCD9-4F0A-A0E3-660CAA2BAB0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E3DC2321-DCD9-4F0A-A0E3-660CAA2BAB0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E3DC2321-DCD9-4F0A-A0E3-660CAA2BAB0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E3DC2321-DCD9-4F0A-A0E3-660CAA2BAB0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A8A4B4F-252F-4D1A-BFB9-71965B4948EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A8A4B4F-252F-4D1A-BFB9-71965B4948EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A8A4B4F-252F-4D1A-BFB9-71965B4948EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A8A4B4F-252F-4D1A-BFB9-71965B4948EF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
