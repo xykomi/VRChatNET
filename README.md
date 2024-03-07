@@ -11,6 +11,7 @@ A simple API that allows interaction with VRChat's local logs & websocket events
 - Supports a variety of events including player joins, leaves, notifications, friend updates, and more.
 
 🌐 WebSocket -> Indicates the requirement for an auth_cookie 
+
 📝 LogFile -> Indicates the requirement for VRChat to be running
 
 + OnPlayerJoined 📝
