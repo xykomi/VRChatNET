@@ -10,28 +10,24 @@ A simple API that allows interaction with VRChat's local logs & websocket events
 - Monitor local log file changes to capture additional events and data when the game is running.
 - Supports a variety of events including player joins, leaves, notifications, friend updates, and more.
 
-## Events
+## Supported Events
 + 🌐 WebSocket -> Indicates the requirement for an auth_cookie 
 + 📝 LogFile -> Indicates the requirement for VRChat to be running
-
 - 
-+ OnPlayerJoined 📝
-+ OnPlayerLeft 📝
-+ OnPlayerBlocked 📝
-+ OnPlayerUnBlocked 📝
-+ OnPlayerAvatarModerationChanged: Safety, Hidden, Shown 📝
-+ OnRoomJoined 📝
-+ OnRoomLeft 📝
-
-+ OnNotificationRecieved 🌐
-+ OnFriendLocationUpdate 🌐
-+ OnFriendOffline 🌐
-+ OnFriendOnline 🌐
-+ OnFriendActive 🌐
-+ OnFriendAdd 🌐
-+ OnResponseNotification 🌐
-+ OnUserLocation 🌐
-
++ 📝 OnPlayerJoined: This event is triggered when a player joins the current session or room in VRChat.
++ 📝 OnPlayerLeft: This event is triggered when a player leaves the current session or room in VRChat.
++ 📝 OnPlayerBlocked: This event is triggered when a player is blocked by the local user in VRChat.
++ 📝 OnPlayerUnBlocked: This event is triggered when a player is unblocked by the local user in VRChat.
++ 📝 OnPlayerAvatarModerationChanged: This event is triggered when the moderation status of a player's avatar changes, being show, hidden, or protected by safety settings.
++ 📝 OnRoomJoined: This event is triggered when the user joins a new room or world in VRChat.
++ 📝 OnRoomLeft: This event is triggered when the user leaves a room or world in VRChat.
++ 🌐 OnNotificationReceived: This event is triggered when the user receives a notification or message in VRChat.
++ 🌐 OnFriendOffline: This event is triggered when a friend goes offline in VRChat.
++ 🌐 OnFriendOnline: This event is triggered when a friend comes online in VRChat.
++ 🌐 OnFriendActive: This event is triggered when a friend becomes active (e.g., logs in to the website) in VRChat.
++ 🌐 OnFriendAdd: This event is triggered when a new friend is added by the user in VRChat.
++ 🌐 OnResponseNotification: This event is triggered when the user receives a response notification in VRChat.
++ 🌐 OnUserLocation: This event is triggered when the user's location or status changes in VRChat.
 
 ## Installation
 To use the VRChat Local API in your project, you can either download the source code and include it directly or install it via NuGet Package Manager.
