@@ -22,7 +22,7 @@ namespace VRChatLibrary
 
         public bool WebSocketConnected { get; private set; } = false;
         public string LogFileContent { get; private set; } = string.Empty;
-        public FileInfo? LogFile { get; private set; }
+        public FileInfo? LogFile { get; private set; } 
 
         public event EventHandler<object> OnInitialized = null!;
         public event EventHandler<OnPlayerJoined> OnPlayerJoined = null!;
