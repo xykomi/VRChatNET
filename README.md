@@ -10,23 +10,26 @@ A simple API that allows interaction with VRChat's local logs & websocket events
 - Monitor local log file changes to capture additional events and data when the game is running.
 - Supports a variety of events including player joins, leaves, notifications, friend updates, and more.
 
-## Supported Events
+🌐 WebSocket -> Indicates the requirement for an auth_cookie 
+📝 LogFile -> Indicates the requirement for VRChat to be running
 
-- OnPlayerJoined
-- OnPlayerLeft
-- OnPlayerBlocked
-- OnPlayerUnBlocked
-- OnPlayerAvatarModerationChanged: Safety, Hidden, Shown
-- OnRoomJoined
-- OnRoomLeft
-- OnNotificationReceived
-- OnFriendLocationUpdate
-- OnFriendOffline
-- OnFriendOnline
-- OnFriendActive
-- OnFriendAdd
-- OnResponseNotification
-- OnUserLocation
++ OnPlayerJoined 📝
++ OnPlayerLeft 📝
++ OnPlayerBlocked 📝
++ OnPlayerUnBlocked 📝
++ OnPlayerAvatarModerationChanged: Safety, Hidden, Shown 📝
++ OnRoomJoined 📝
++ OnRoomLeft 📝
+
++ OnNotificationRecieved 🌐
++ OnFriendLocationUpdate 🌐
++ OnFriendOffline 🌐
++ OnFriendOnline 🌐
++ OnFriendActive 🌐
++ OnFriendAdd 🌐
++ OnResponseNotification 🌐
++ OnUserLocation 🌐
+
 
 ## Installation
 To use the VRChat Local API in your project, you can either download the source code and include it directly or install it via NuGet Package Manager.
