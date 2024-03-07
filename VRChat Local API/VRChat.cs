@@ -1,85 +1,79 @@
-﻿using System.Diagnostics;
-using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
+﻿using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Text;
-using VRChat_Local_API.Objects;
-using static VRChat_Local_API.Objects.VRChatEvents;
-using WebSocketSharp;
+using System.Text.RegularExpressions;
+using System.Threading;
 using Newtonsoft.Json;
+using WebSocketSharp;
+using VRChat_Local_API.Objects;
+using static VRChat_Local_API.Objects.VRCEvents;
 
 namespace VRChat_Local_API
 {
     public class VRChat
     {
-        private static WebSocket _webSocket {  get; set; }
-        public bool WebSocketConnected { get; set; } = false;
+        private readonly WebSocket _webSocket;
+        private readonly string _logDirectory;
+        private long _logFileCurrentLength = 0;
+        private bool _disableThreads = false;
+        private string _pastLogFileContent = string.Empty;
 
-        private static string _logDirectory { get; set; } = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData).Replace("Roaming", "LocalLow") + @"/VRChat/VRChat";
-        private FileInfo? _logFile { get; set; } = null;
-        private long _logFileCurrentLength { get; set; } = 0;
-        private bool _disableThreads { get; set; } = false;
-
-        public string LogFileContent { get; set; } = string.Empty;
-        private string PastLogFileContent { get; set; } = "x";
+        public bool WebSocketConnected { get; private set; } = false;
+        public string LogFileContent { get; private set; } = string.Empty;
+        public FileInfo? LogFile { get; private set; }
 
         public event EventHandler<object> OnInitialized = null!;
+        public event EventHandler<OnPlayerJoined> OnPlayerJoined = null!;
+        public event EventHandler<OnPlayerLeft> OnPlayerLeft = null!;
+        public event EventHandler<OnPlayerBlocked> OnPlayerBlocked = null!;
+        public event EventHandler<OnPlayerUnBlocked> OnPlayerUnBlocked = null!;
+        public event EventHandler<OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged = null!;
+        public event EventHandler<OnRoomJoin> OnRoomJoined = null!;
+        public event EventHandler<OnRoomLeft> OnRoomLeft = null!;
+        public event EventHandler<OnNotificationReceived> OnNotificationReceived = null!;
+        public event EventHandler<OnFriendLocationUpdate> OnFriendLocationUpdate = null!;
+        public event EventHandler<OnFriendOffline> OnFriendOffline = null!;
+        public event EventHandler<OnFriendOnline> OnFriendOnline = null!;
+        public event EventHandler<OnFriendActive> OnFriendActive = null!;
+        public event EventHandler<OnFriendAdd> OnFriendAdd = null!;
+        public event EventHandler<OnResponseNotification> OnResponseNotification = null!;
+        public event EventHandler<OnUserLocation> OnUserLocationUpdated = null!;
 
-        public event EventHandler<VRChatEvents.OnPlayerJoined> OnPlayerJoined = null!;
-
-        public event EventHandler<VRChatEvents.OnPlayerLeft> OnPlayerLeft = null!;
-
-        public event EventHandler<VRChatEvents.OnPlayerBlocked> OnPlayerBlocked = null!;
-
-        public event EventHandler<VRChatEvents.OnPlayerUnBlocked> OnPlayerUnBlocked = null!;
-
-        public event EventHandler<VRChatEvents.OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged = null!;
-
-        public event EventHandler<VRChatEvents.OnRoomJoin> OnRoomJoined = null!;
-
-        public event EventHandler<VRChatEvents.OnRoomLeft> OnRoomLeft = null!;
-
-        public event EventHandler<VRChatEvents.OnNotificationRecieved> OnNotificationRecieved = null!;
-
-        public event EventHandler<VRChatEvents.OnFriendLocationUpdate> OnFriendLocationUpdate = null!;
-
-        public event EventHandler<VRChatEvents.OnFriendOffline> OnFriendOffline = null!;
-
-        public event EventHandler<VRChatEvents.OnFriendOnline> OnFriendOnline = null!;
-
-        public event EventHandler<VRChatEvents.OnFriendActive> OnFriendActive = null!;
-
-        public event EventHandler<VRChatEvents.OnFriendAdd> OnFriendAdd = null!;
-
-        public event EventHandler<VRChatEvents.OnResponseNotification> OnResponseNotification = null!;
-
-        public event EventHandler<VRChatEvents.OnUserLocation> OnUserLocationUpdated = null!;
-
-        public void Initialize(string authCookie)
+        public VRChat(string authCookie)
         {
-            WebSocketListener(authCookie);
+            _logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData).Replace("Roaming", "LocalLow"), "VRChat", "VRChat");
+            _webSocket = new WebSocket($"wss://pipeline.vrchat.cloud/?authToken={authCookie}");
+        }
 
-            _logFile = GetLogFile();
-
-            if (_logFile != null)
-                using (FileStream fileStream = new FileStream(_logFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        public void Initialize()
+        {
+            WebSocketListener();
+            LogFile = GetLogFile();
+            if (LogFile != null)
+            {
+                using (FileStream fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                     _logFileCurrentLength = fileStream.Length;
+            }
             else
-                throw new Exception("Failed to access the most recent log file");
+            {
+                throw new FileNotFoundException("Failed to access the most recent log file");
+            }
 
             FileEventListener();
 
             OnInitialized?.Invoke(this, this);
         }
-        public void WebSocketListener(string cookie)
+
+        private void WebSocketListener()
         {
-            new Thread(() => {
-                _webSocket = new WebSocket($"wss://pipeline.vrchat.cloud/?authToken={cookie}");
-                _webSocket.OnOpen += OnOpen; ;
-                _webSocket.OnMessage += OnMessage;
-                _webSocket.OnClose += OnClose;
-                _webSocket.Connect();
-            }).Start();
+            _webSocket.OnOpen += OnOpen;
+            _webSocket.OnMessage += OnMessage;
+            _webSocket.OnClose += OnClose;
+            _webSocket.Connect();
         }
+
         private void OnOpen(object? sender, EventArgs e)
         {
             WebSocketConnected = true;
@@ -88,45 +82,46 @@ namespace VRChat_Local_API
 
         private void OnMessage(object? sender, MessageEventArgs e)
         {
-            VRChatEvents.SocketMessageBase incommingData = JsonConvert.DeserializeObject<VRChatEvents.SocketMessageBase>(e.Data);
+            SocketMessageBase incomingData = JsonConvert.DeserializeObject<SocketMessageBase>(e.Data);
 
-            switch (incommingData.Type)
+            switch (incomingData.Type)
             {
                 case "notification":
-                    VRChatEvents.OnNotificationRecieved notificationObject = JsonConvert.DeserializeObject<VRChatEvents.OnNotificationRecieved>(incommingData.Content);
-                    OnNotificationRecieved?.Invoke(this, notificationObject);
+                    InvokeEvent(OnNotificationReceived, incomingData.Content, typeof(OnNotificationReceived));
                     break;
                 case "friend-location":
-                    VRChatEvents.OnFriendLocationUpdate friendLocationObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendLocationUpdate>(incommingData.Content);
-                    OnFriendLocationUpdate?.Invoke(this, friendLocationObject);
+                    InvokeEvent(OnFriendLocationUpdate, incomingData.Content, typeof(OnFriendLocationUpdate));
                     break;
                 case "friend-offline":
-                    VRChatEvents.OnFriendOffline friendOfflineObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendOffline>(incommingData.Content);
-                    OnFriendOffline?.Invoke(this, friendOfflineObject);
+                    InvokeEvent(OnFriendOffline, incomingData.Content, typeof(OnFriendOffline));
                     break;
                 case "friend-online":
-                    VRChatEvents.OnFriendOnline friendOnlineObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendOnline>(incommingData.Content);
-                    OnFriendOnline?.Invoke(this, friendOnlineObject);
+                    InvokeEvent(OnFriendOnline, incomingData.Content, typeof(OnFriendOnline));
                     break;
                 case "friend-active":
-                    VRChatEvents.OnFriendActive friendActiveObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendActive>(incommingData.Content);
-                    OnFriendActive?.Invoke(this, friendActiveObject);
+                    InvokeEvent(OnFriendActive, incomingData.Content, typeof(OnFriendActive));
                     break;
                 case "friend-add":
-                    VRChatEvents.OnFriendAdd friendAddObject = JsonConvert.DeserializeObject<VRChatEvents.OnFriendAdd>(incommingData.Content);
-                    OnFriendAdd?.Invoke(this, friendAddObject);
+                    InvokeEvent(OnFriendAdd, incomingData.Content, typeof(OnFriendAdd));
                     break;
                 case "response-notification":
-                    VRChatEvents.OnResponseNotification responseNotificationObject = JsonConvert.DeserializeObject<VRChatEvents.OnResponseNotification>(incommingData.Content);
-                    OnResponseNotification?.Invoke(this, responseNotificationObject);
+                    InvokeEvent(OnResponseNotification, incomingData.Content, typeof(OnResponseNotification));
                     break;
                 case "user-location":
-                    VRChatEvents.OnUserLocation userLocationObject = JsonConvert.DeserializeObject<VRChatEvents.OnUserLocation>(incommingData.Content);
-                    OnUserLocationUpdated?.Invoke(this, userLocationObject);
+                    InvokeEvent(OnUserLocationUpdated, incomingData.Content, typeof(OnUserLocation));
                     break;
                 default:
-                    Console.WriteLine($"Implementation Required = {incommingData.Type} -> {incommingData.Content}");
+                    Console.WriteLine($"Implementation Required = {incomingData.Type} -> {incomingData.Content}");
                     break;
+            }
+        }
+
+        private void InvokeEvent(Delegate? handler, string content, Type eventType)
+        {
+            if (handler != null)
+            {
+                object eventArgs = JsonConvert.DeserializeObject(content, eventType);
+                handler.DynamicInvoke(this, eventArgs);
             }
         }
 
@@ -137,98 +132,114 @@ namespace VRChat_Local_API
 
         private void FileEventListener()
         {
-            new Thread(() => 
+            new Thread(() =>
             {
                 while (!_disableThreads)
                 {
-                    using (FileStream fileStream = new FileStream(_logFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    try
                     {
-                        fileStream.Seek(_logFileCurrentLength - 1, SeekOrigin.Begin);
+                        string currentLogFileContent = ReadLogFileContent();
 
-                        using (StreamReader streamReader = new StreamReader(fileStream, Encoding.Default))
-                            LogFileContent = streamReader.ReadToEnd();
-
-                        if (LogFileContent != PastLogFileContent)
+                        if (currentLogFileContent != _pastLogFileContent)
                         {
-                            foreach (var line in LogFileContent.Replace(PastLogFileContent, "").Split('\n'))
-                            {
-                                if (line.Contains("OnPlayerJoined"))
-                                {
-                                    string displayName = Regex.Match(line, @"OnPlayerJoined (.+)").Groups[1].Value;
-                                    if (displayName == string.Empty)
-                                        continue;
-
-                                    OnPlayerJoined?.Invoke(this, new VRChatEvents.OnPlayerJoined() { dateTime = DateTime.Now, displayName = displayName, data = line });
-                                }
-
-                                if (line.Contains("OnPlayerLeft"))
-                                {
-
-                                    string displayName = Regex.Match(line, @"OnPlayerLeft (.+)").Groups[1].Value;
-                                    if (displayName == string.Empty)
-                                        continue;
-
-                                    OnPlayerLeft?.Invoke(this, new VRChatEvents.OnPlayerLeft() { dateTime = DateTime.Now, displayName = displayName, data = line });
-                                }
-
-                                if (line.Contains("Successfully left room"))
-                                {
-                                    OnRoomLeft?.Invoke(this, new VRChatEvents.OnRoomLeft() { dateTime = DateTime.Now, data = line });
-                                }
-
-                                if (line.Contains("Joining wrld_"))
-                                {
-                                    string worldId = line.Split("Joining ")[1].Split(':')[0];
-                                    int roomInstance = int.Parse(line.Split(':')[1]);
-
-                                    OnRoomJoined?.Invoke(this, new VRChatEvents.OnRoomJoin() { dateTime = DateTime.Now, worldId = worldId, roomInstance = roomInstance, data = line });
-                                }
-
-                                if (line.Contains("ModerationManager"))
-                                {
-                                    string moderationData = Regex.Match(line, @"\[ModerationManager\] (.+)").Groups[1].Value;
-
-                                    if (line.ToLower().Contains("avatar"))
-                                    {
-                                        string displayName = moderationData.Split("avatar")[0].Replace(" ", "");
-                                        string displayData = moderationData.ToLower().Split("avatar")[1];
-
-                                        if (displayData.Contains("hidden"))
-                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Hidden, data = line });
-                                        if (displayData.Contains("enabled"))
-                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Shown, data = line });
-                                        if (displayData.Contains("safety"))
-                                        {
-                                            displayName = moderationData.Split("Avatar")[0].Replace(" ", "");
-                                            OnPlayerAvatarModerationChanged?.Invoke(this, new VRChatEvents.OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = VRChatEvents.OnPlayerAvatarModeration.ModerationType.Safety, data = line });
-                                        }
-                                    }
-                                    
-                                    if (line.Contains("Requesting block on"))
-                                    {
-                                        string displayName = moderationData.Split("Requesting block on")[1];
-                                        OnPlayerBlocked?.Invoke(this, new VRChatEvents.OnPlayerBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
-                                    }
-                                    if (line.Contains("Requesting unblock on"))
-                                    {
-                                        string displayName = moderationData.Split("Requesting unblock on")[1];
-                                        OnPlayerUnBlocked?.Invoke(this, new VRChatEvents.OnPlayerUnBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
-                                    }
-                                }
-                            }
-
-                            PastLogFileContent = LogFileContent;
+                            ProcessLogFileContent(currentLogFileContent);
+                            _pastLogFileContent = currentLogFileContent;
                         }
                     }
+                    catch (IOException)
+                    {
+                        Thread.Sleep(1000);
+                    }
+
+                    Thread.Sleep(350);
                 }
             }).Start();
         }
 
-        public void Shutdown() { _disableThreads = true; }
-         
+        private string ReadLogFileContent()
+        {
+            using (FileStream fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (StreamReader streamReader = new StreamReader(fileStream, Encoding.Default))
+            {
+                fileStream.Seek(_logFileCurrentLength - 1, SeekOrigin.Begin);
+                return streamReader.ReadToEnd();
+            }
+        }
+
+        private void ProcessLogFileContent(string logFileContent)
+        {
+            foreach (var line in logFileContent.Split('\n'))
+            {
+                if (line.Contains("OnPlayerJoined"))
+                    ProcessOnPlayerJoined(line);
+                else if (line.Contains("OnPlayerLeft"))
+                    ProcessOnPlayerLeft(line);
+                else if (line.Contains("Successfully left room"))
+                    OnRoomLeft?.Invoke(this, new OnRoomLeft() { dateTime = DateTime.Now, data = line });
+                else if (line.Contains("Joining wrld_"))
+                    ProcessJoiningWorld(line);
+                else if (line.Contains("ModerationManager"))
+                    ProcessModerationManager(line);
+            }
+        }
+
+        private void ProcessOnPlayerJoined(string line)
+        {
+            string displayName = Regex.Match(line, @"OnPlayerJoined (.+)").Groups[1].Value;
+            if (!string.IsNullOrEmpty(displayName))
+                OnPlayerJoined?.Invoke(this, new OnPlayerJoined() { dateTime = DateTime.Now, displayName = displayName, data = line });
+        }
+
+        private void ProcessOnPlayerLeft(string line)
+        {
+            string displayName = Regex.Match(line, @"OnPlayerLeft (.+)").Groups[1].Value;
+            if (!string.IsNullOrEmpty(displayName))
+                OnPlayerLeft?.Invoke(this, new OnPlayerLeft() { dateTime = DateTime.Now, displayName = displayName, data = line });
+        }
+
+        private void ProcessJoiningWorld(string line)
+        {
+            string worldId = line.Split("Joining ")[1].Split(':')[0];
+            int roomInstance = int.Parse(line.Split(':')[1]);
+            OnRoomJoined?.Invoke(this, new OnRoomJoin() { dateTime = DateTime.Now, worldId = worldId, roomInstance = roomInstance, data = line });
+        }
+
+        private void ProcessModerationManager(string line)
+        {
+            string moderationData = Regex.Match(line, @"\[ModerationManager\] (.+)").Groups[1].Value;
+
+            if (line.ToLower().Contains("avatar"))
+            {
+                string displayName = moderationData.Split("avatar")[0].Replace(" ", "");
+                string displayData = moderationData.ToLower().Split("avatar")[1];
+
+                if (displayData.Contains("hidden"))
+                    OnPlayerAvatarModerationChanged?.Invoke(this, new OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = OnPlayerAvatarModeration.ModerationType.Hidden, data = line });
+                if (displayData.Contains("enabled"))
+                    OnPlayerAvatarModerationChanged?.Invoke(this, new OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = OnPlayerAvatarModeration.ModerationType.Shown, data = line });
+                if (displayData.Contains("safety"))
+                {
+                    displayName = moderationData.Split("Avatar")[0].Replace(" ", "");
+                    OnPlayerAvatarModerationChanged?.Invoke(this, new OnPlayerAvatarModeration() { dateTime = DateTime.Now, displayName = displayName, moderationType = OnPlayerAvatarModeration.ModerationType.Safety, data = line });
+                }
+            }
+            else if (line.Contains("Requesting block on"))
+            {
+                string displayName = moderationData.Split("Requesting block on")[1];
+                OnPlayerBlocked?.Invoke(this, new OnPlayerBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
+            }
+            else if (line.Contains("Requesting unblock on"))
+            {
+                string displayName = moderationData.Split("Requesting unblock on")[1];
+                OnPlayerUnBlocked?.Invoke(this, new OnPlayerUnBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
+            }
+        }
+
+        public void Shutdown() => _disableThreads = true;
+
         public bool IsRunning() => Process.GetProcessesByName("VRChat").Length > 0;
 
-        public static FileInfo? GetLogFile()
+        public FileInfo? GetLogFile()
         {
             foreach (var file in new DirectoryInfo(_logDirectory).GetFiles().OrderByDescending(x => x.LastWriteTime))
             {
