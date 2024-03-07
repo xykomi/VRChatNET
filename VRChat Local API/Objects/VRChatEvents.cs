@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VRChat_Local_API.Objects
+namespace VRChatLibrary.Objects
 {
     public class VRCEvents
     {

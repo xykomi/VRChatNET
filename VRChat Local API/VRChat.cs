@@ -7,10 +7,10 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using Newtonsoft.Json;
 using WebSocketSharp;
-using VRChat_Local_API.Objects;
-using static VRChat_Local_API.Objects.VRCEvents;
+using VRChatLibrary.Objects;
+using static VRChatLibrary.Objects.VRCEvents;
 
-namespace VRChat_Local_API
+namespace VRChatLibrary
 {
     public class VRChat
     {
