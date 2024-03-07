@@ -1,42 +1,54 @@
 <a href="Ω"><img src="http://readme-typing-svg.herokuapp.com?font=VT323&size=90&duration=2000&pause=1000&color=F70000&center=true&random=false&width=1100&height=140&lines=%E2%98%A6+VRChat+Local+API+%E2%98%A6;%E2%98%A6+By+Smoke+%E2%98%A6" alt="Ω" /></a>
 
-A simple API that allows interaction with VRChat's local logs & websocket events
+# VRChat Local API
 
-Current supported events:
+A simple API that allows interaction with VRChat's local logs & websocket events.
 
-+ OnPlayerJoined
-+ OnPlayerLeft
-+ OnPlayerBlocked
-+ OnPlayerUnBlocked
-+ OnPlayerAvatarModerationChanged: Safety, Hidden, Shown
-+ OnRoomJoined
-+ OnRoomLeft
-+ OnNotificationRecieved
-+ OnFriendLocationUpdate
-+ OnFriendOffline
-+ OnFriendOnline
-+ OnFriendActive
-+ OnFriendAdd
-+ OnResponseNotification
-+ OnUserLocation
+## Features
 
+- Receive real-time WebSocket events even when the game is not running.
+- Monitor local log file changes to capture additional events and data when the game is running.
+- Supports a variety of events including player joins, leaves, notifications, friend updates, and more.
+
+## Supported Events
+
+- OnPlayerJoined
+- OnPlayerLeft
+- OnPlayerBlocked
+- OnPlayerUnBlocked
+- OnPlayerAvatarModerationChanged: Safety, Hidden, Shown
+- OnRoomJoined
+- OnRoomLeft
+- OnNotificationReceived
+- OnFriendLocationUpdate
+- OnFriendOffline
+- OnFriendOnline
+- OnFriendActive
+- OnFriendAdd
+- OnResponseNotification
+- OnUserLocation
+
+## Installation
+To use the VRChat Local API in your project, you can either download the source code and include it directly or install it via NuGet Package Manager.
+
+### NuGet Installation
+```bash
+dotnet add package VRChat_Local_API
+```
 ## Usage/Examples
-
 ```csharp
-     using VRChat_Local_API;
-     using VRChat_Local_API.Objects;
+// Initialize VRChat instance with authentication cookie
+var vrChat = new VRChat("YOUR_AUTH_COOKIE");
 
-     vRChat = new VRChat();
+// Subscribe to events
+vrChat.OnPlayerJoined += (sender, args) =>
+{
+    // Handle player joined event
+};
 
-     string credentials = System.IO.File.ReadAllText($"F:\\VRChatAccount.txt"); -> username:password:auth_cookie
-        
-     vRChat.OnFriendOnline += OnFriendOnline;
+// Initialize and start listening for events
+vrChat.Initialize();
 
-     vRChat.Initialize(credentials.Split(':')[2]);
-
-     private void OnFriendOnline(object? sender, VRChatEvents.OnFriendOnline args)
-     {
-         Console.WriteLine($"[{DateTime.Now}] - {args.User.DisplayName} has come online");
-     }
-
+// Shutdown when done
+vrChat.Shutdown();
 ```
