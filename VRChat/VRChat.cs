@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
+using System.Threading.Tasks;
 using Newtonsoft.Json;
 using WebSocketSharp;
 using VRChatLibrary.Objects;
@@ -16,73 +16,61 @@ namespace VRChatLibrary
     {
         private readonly WebSocket _webSocket;
         private readonly string _logDirectory;
-        private long _logFileCurrentLength = 0;
-        private bool _disableThreads = false;
         private string _pastLogFileContent = string.Empty;
+        private bool _disableThreads = false;
 
         public bool WebSocketConnected { get; private set; } = false;
-        public string LogFileContent { get; private set; } = string.Empty;
-        public FileInfo? LogFile { get; private set; } 
+        public FileInfo? LogFile { get; private set; }
 
-        public event EventHandler<object> OnInitialized = null!;
-        public event EventHandler<OnPlayerJoined> OnPlayerJoined = null!;
-        public event EventHandler<OnPlayerLeft> OnPlayerLeft = null!;
-        public event EventHandler<OnPlayerBlocked> OnPlayerBlocked = null!;
-        public event EventHandler<OnPlayerUnBlocked> OnPlayerUnBlocked = null!;
-        public event EventHandler<OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged = null!;
-        public event EventHandler<OnRoomJoin> OnRoomJoined = null!;
-        public event EventHandler<OnRoomLeft> OnRoomLeft = null!;
-        public event EventHandler<OnNotificationReceived> OnNotificationReceived = null!;
-        public event EventHandler<OnFriendLocationUpdate> OnFriendLocationUpdate = null!;
-        public event EventHandler<OnFriendOffline> OnFriendOffline = null!;
-        public event EventHandler<OnFriendOnline> OnFriendOnline = null!;
-        public event EventHandler<OnFriendActive> OnFriendActive = null!;
-        public event EventHandler<OnFriendAdd> OnFriendAdd = null!;
-        public event EventHandler<OnResponseNotification> OnResponseNotification = null!;
-        public event EventHandler<OnUserLocation> OnUserLocationUpdated = null!;
+        public event EventHandler<object> OnInitialized;
+        public event EventHandler<OnPlayerJoined> OnPlayerJoined;
+        public event EventHandler<OnPlayerLeft> OnPlayerLeft;
+        public event EventHandler<OnPlayerBlocked> OnPlayerBlocked;
+        public event EventHandler<OnPlayerUnBlocked> OnPlayerUnBlocked;
+        public event EventHandler<OnPlayerAvatarModeration> OnPlayerAvatarModerationChanged;
+        public event EventHandler<OnRoomJoin> OnRoomJoined;
+        public event EventHandler<OnRoomLeft> OnRoomLeft;
+        public event EventHandler<OnNotificationReceived> OnNotificationReceived;
+        public event EventHandler<OnFriendLocationUpdate> OnFriendLocationUpdate;
+        public event EventHandler<OnFriendOffline> OnFriendOffline;
+        public event EventHandler<OnFriendOnline> OnFriendOnline;
+        public event EventHandler<OnFriendActive> OnFriendActive;
+        public event EventHandler<OnFriendAdd> OnFriendAdd;
+        public event EventHandler<OnResponseNotification> OnResponseNotification;
+        public event EventHandler<OnUserLocation> OnUserLocationUpdated;
 
         public VRChat(string authCookie)
         {
-            _logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData).Replace("Roaming", "LocalLow"), "VRChat", "VRChat");
+            _logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRChat", "VRChat");
             _webSocket = new WebSocket($"wss://pipeline.vrchat.cloud/?authToken={authCookie}");
         }
 
-        public void Initialize()
+        public async Task InitializeAsync()
         {
-            WebSocketListener();
+            await WebSocketListenerAsync().ConfigureAwait(false);
             LogFile = GetLogFile();
-            if (LogFile != null)
-            {
-                using (FileStream fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    _logFileCurrentLength = fileStream.Length;
-            }
-            else
+            if (LogFile == null)
             {
                 throw new FileNotFoundException("Failed to access the most recent log file");
             }
 
-            FileEventListener();
-
-            OnInitialized?.Invoke(this, this);
+            await FileEventListenerAsync().ConfigureAwait(false);
+            OnInitialized?.Invoke(this, EventArgs.Empty);
         }
 
-        private void WebSocketListener()
+        private async Task WebSocketListenerAsync()
         {
-            _webSocket.OnOpen += OnOpen;
-            _webSocket.OnMessage += OnMessage;
-            _webSocket.OnClose += OnClose;
-            _webSocket.Connect();
+            _webSocket.OnOpen += (sender, e) => WebSocketConnected = true;
+            _webSocket.OnMessage += (sender, e) => ProcessWebSocketMessage(e.Data);
+            _webSocket.OnClose += (sender, e) => WebSocketConnected = false;
+
+            await Task.Run(() => _webSocket.Connect());
         }
 
-        private void OnOpen(object? sender, EventArgs e)
+        private void ProcessWebSocketMessage(string message)
         {
-            WebSocketConnected = true;
-            OnInitialized?.Invoke(this, this);
-        }
-
-        private void OnMessage(object? sender, MessageEventArgs e)
-        {
-            SocketMessageBase incomingData = JsonConvert.DeserializeObject<SocketMessageBase>(e.Data);
+            SocketMessageBase incomingData = JsonConvert.DeserializeObject<SocketMessageBase>(message);
+            if (incomingData == null) return;
 
             switch (incomingData.Type)
             {
@@ -125,21 +113,15 @@ namespace VRChatLibrary
             }
         }
 
-        private void OnClose(object? sender, CloseEventArgs e)
+        private async Task FileEventListenerAsync()
         {
-            WebSocketConnected = false;
-        }
-
-        private void FileEventListener()
-        {
-            new Thread(() =>
+            await Task.Run(async () =>
             {
                 while (!_disableThreads)
                 {
                     try
                     {
-                        string currentLogFileContent = ReadLogFileContent();
-
+                        var currentLogFileContent = await ReadLogFileContentAsync();
                         if (currentLogFileContent != _pastLogFileContent)
                         {
                             ProcessLogFileContent(currentLogFileContent);
@@ -148,21 +130,22 @@ namespace VRChatLibrary
                     }
                     catch (IOException)
                     {
-                        Thread.Sleep(1000);
+                        await Task.Delay(1000);
                     }
 
-                    Thread.Sleep(350);
+                    await Task.Delay(350);
                 }
-            }).Start();
+            });
         }
 
-        private string ReadLogFileContent()
+        private async Task<string> ReadLogFileContentAsync()
         {
-            using (FileStream fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (StreamReader streamReader = new StreamReader(fileStream, Encoding.Default))
+            if (LogFile == null) return string.Empty;
+            using (var fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var streamReader = new StreamReader(fileStream, Encoding.Default))
             {
-                fileStream.Seek(_logFileCurrentLength - 1, SeekOrigin.Begin);
-                return streamReader.ReadToEnd();
+                fileStream.Seek(0, SeekOrigin.End);
+                return await streamReader.ReadToEndAsync();
             }
         }
 
@@ -182,6 +165,18 @@ namespace VRChatLibrary
                     ProcessModerationManager(line);
             }
         }
+
+        public FileInfo? GetLogFile()
+        {
+            return new DirectoryInfo(_logDirectory)
+                .GetFiles("*.txt")
+                .OrderByDescending(f => f.LastWriteTime)
+                .FirstOrDefault();
+        }
+
+        public void Shutdown() => _disableThreads = true;
+
+        public bool IsRunning() => Process.GetProcessesByName("VRChat").Any();
 
         private void ProcessOnPlayerJoined(string line)
         {
@@ -233,22 +228,6 @@ namespace VRChatLibrary
                 string displayName = moderationData.Split("Requesting unblock on")[1];
                 OnPlayerUnBlocked?.Invoke(this, new OnPlayerUnBlocked() { dateTime = DateTime.Now, displayName = displayName, data = line });
             }
-        }
-
-        public void Shutdown() => _disableThreads = true;
-
-        public bool IsRunning() => Process.GetProcessesByName("VRChat").Length > 0;
-
-        public FileInfo? GetLogFile()
-        {
-            foreach (var file in new DirectoryInfo(_logDirectory).GetFiles().OrderByDescending(x => x.LastWriteTime))
-            {
-                if (file.Name.EndsWith(".txt"))
-                {
-                    return file;
-                }
-            }
-            return null;
         }
     }
 }

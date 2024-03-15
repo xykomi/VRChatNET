@@ -18,7 +18,6 @@ namespace VRChatLibrary.Objects
             public string Content;
         }
 
-
         public class OnPlayerJoined
         {
             public string data { get; set; } = string.Empty;
