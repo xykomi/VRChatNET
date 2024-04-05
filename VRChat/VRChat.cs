@@ -18,7 +18,7 @@ namespace VRChatLibrary
         private readonly string _logDirectory;
         private string _pastLogFileContent = string.Empty;
         private bool _disableThreads = false;
-
+        private long _lastPosition = 0;
         public bool WebSocketConnected { get; private set; } = false;
         public FileInfo? LogFile { get; private set; }
 
@@ -41,7 +41,9 @@ namespace VRChatLibrary
 
         public VRChat(string authCookie)
         {
-            _logDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VRChat", "VRChat");
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string localLowPath = Path.Combine(Directory.GetParent(localAppData).FullName, "LocalLow");
+            _logDirectory = Path.Combine(localLowPath, "VRChat", "VRChat");
             _webSocket = new WebSocket($"wss://pipeline.vrchat.cloud/?authToken={authCookie}");
         }
 
@@ -115,37 +117,61 @@ namespace VRChatLibrary
 
         private async Task FileEventListenerAsync()
         {
-            await Task.Run(async () =>
+            try
             {
-                while (!_disableThreads)
+                await Task.Run(async () =>
                 {
-                    try
+                    while (!_disableThreads)
                     {
-                        var currentLogFileContent = await ReadLogFileContentAsync();
-                        if (currentLogFileContent != _pastLogFileContent)
+                        try
                         {
-                            ProcessLogFileContent(currentLogFileContent);
-                            _pastLogFileContent = currentLogFileContent;
+                            var currentLogFileContent = await ReadLogFileContentAsync();
+                            if (currentLogFileContent != _pastLogFileContent)
+                            {
+                                ProcessLogFileContent(currentLogFileContent);
+                                _pastLogFileContent = currentLogFileContent;
+                            }
                         }
-                    }
-                    catch (IOException)
-                    {
-                        await Task.Delay(1000);
-                    }
+                        catch (IOException ex)
+                        {
+                            LogFile = GetLogFile();
+                            _pastLogFileContent = string.Empty;
+                            await Task.Delay(1000);
+                        }
 
-                    await Task.Delay(350);
-                }
-            });
+                        await Task.Delay(350);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to initialize FileEventListener: {ex.Message}");
+            }
         }
 
         private async Task<string> ReadLogFileContentAsync()
         {
             if (LogFile == null) return string.Empty;
             using (var fileStream = new FileStream(LogFile.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var streamReader = new StreamReader(fileStream, Encoding.Default))
             {
-                fileStream.Seek(0, SeekOrigin.End);
-                return await streamReader.ReadToEndAsync();
+                if (_lastPosition == 0)
+                {
+                    _lastPosition = fileStream.Length;
+                }
+
+                if (fileStream.Length == _lastPosition)
+                {
+                    return string.Empty;
+                }
+
+                fileStream.Seek(_lastPosition, SeekOrigin.Begin);
+
+                using (var streamReader = new StreamReader(fileStream, Encoding.Default))
+                {
+                    string content = await streamReader.ReadToEndAsync();
+                    _lastPosition = fileStream.Position;
+                    return content;
+                }
             }
         }
 
