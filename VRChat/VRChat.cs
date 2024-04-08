@@ -36,6 +36,7 @@ namespace VRChatLibrary
         public event EventHandler<OnFriendOnline> OnFriendOnline;
         public event EventHandler<OnFriendActive> OnFriendActive;
         public event EventHandler<OnFriendAdd> OnFriendAdd;
+        public event EventHandler<OnFriendRemoved> OnFriendRemoved;
         public event EventHandler<OnResponseNotification> OnResponseNotification;
         public event EventHandler<OnUserLocation> OnUserLocationUpdated;
 
@@ -99,6 +100,9 @@ namespace VRChatLibrary
                     break;
                 case "user-location":
                     InvokeEvent(OnUserLocationUpdated, incomingData.Content, typeof(OnUserLocation));
+                    break;
+                case "friend-delete":
+                    InvokeEvent(OnFriendRemoved, incomingData.Content, typeof(OnFriendRemoved));
                     break;
                 default:
                     Console.WriteLine($"Implementation Required = {incomingData.Type} -> {incomingData.Content}");

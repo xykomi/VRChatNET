@@ -123,6 +123,13 @@ namespace VRChatLibrary.Objects
             public User user { get; set; }
         }
 
+        public class OnFriendRemoved
+        {
+            public string data { get; set; } = string.Empty;
+            public DateTime dateTime { get; set; } = DateTime.Now;
+            public string userId { get; set; } = string.Empty;
+        }
+
         public class OnResponseNotification
         {
             public string notificationId { get; set; }
